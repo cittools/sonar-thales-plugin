@@ -1,6 +1,24 @@
+/*
+ * Sonar is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ *
+ * Sonar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with Sonar; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02
+ */
+
 package hudson.plugins.sonar.utils;
 
+import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.plugins.sonar.SonarPublisher;
 import hudson.plugins.sonar.template.SonarPomGenerator;
 
 import java.io.File;
@@ -23,7 +41,7 @@ public class Utils {
 	 * @throws InterruptedException
 	 * @throws IOException
 	 */
-	public static List<String> getProjectSrcDirsList(String src, final FilePath root)
+	public static List<String> getProjectSrcDirsList(String src, final FilePath root, EnvVars env)
 	        throws IOException, InterruptedException
 	{
 	    final List<String> wildcards = new ArrayList<String>();
@@ -35,10 +53,10 @@ public class Utils {
 	        if (pat != null && !pat.trim().isEmpty()) {
 	        	String trimmedPattern = pat.trim();
 	        	if (trimmedPattern.indexOf("?")==-1 && trimmedPattern.indexOf("*") == -1){
-	        		sourceDirs.add(trimmedPattern);
+	        		sourceDirs.add(SonarPublisher.expandJenkinsVars(env, trimmedPattern) );
 	        	}
 	        	else {
-	        		wildcards.add(trimmedPattern);
+	        		wildcards.add(SonarPublisher.expandJenkinsVars(env, trimmedPattern));
 	        	}
 	        }
 	    }

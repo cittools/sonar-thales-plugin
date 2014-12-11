@@ -15,7 +15,9 @@
  */
 package hudson.plugins.sonar.template;
 
+import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.plugins.sonar.SonarPublisher;
 import hudson.plugins.sonar.model.LightProjectConfig;
 import hudson.plugins.sonar.model.ReportsConfig;
 import hudson.plugins.sonar.utils.Utils;
@@ -34,12 +36,14 @@ import org.apache.commons.lang.StringUtils;
  */
 public final class SonarPomGenerator {
     public static void generatePomForNonMavenProject(LightProjectConfig project, FilePath root,
-            String pomName) throws IOException, InterruptedException
+            String pomName, EnvVars env) throws IOException, InterruptedException
     {
         SimpleTemplate pomTemplate = new SimpleTemplate("hudson/plugins/sonar/sonar-light-pom.template");
-        pomTemplate.setAttribute("groupId", project.getGroupId());
-        pomTemplate.setAttribute("artifactId", project.getArtifactId());
-        pomTemplate.setAttribute("projectName", project.getProjectName());  // FIXME
+        pomTemplate.setAttribute("groupId", SonarPublisher.expandJenkinsVars(env,project.getGroupId()));
+        //pomTemplate.setAttribute("artifactId", project.getArtifactId());
+        pomTemplate.setAttribute("artifactId", SonarPublisher.expandJenkinsVars(env, project.getArtifactId()));
+        pomTemplate.setAttribute("projectName", SonarPublisher.expandJenkinsVars(env, project.getProjectName()));
+        //pomTemplate.setAttribute("projectName", project.getProjectName());  // FIXME
                                                                             // Godin:
                                                                             // env.expand
                                                                             // because
@@ -47,20 +51,24 @@ public final class SonarPomGenerator {
                                                                             // can
                                                                             // be
                                                                             // "${JOB_NAME}"
-        pomTemplate.setAttribute("projectVersion", StringUtils.isEmpty(project.getProjectVersion()) ? "1.0" : project
-                        .getProjectVersion());
-        pomTemplate.setAttribute("javaVersion", StringUtils.isEmpty(project.getJavaVersion()) ? "1.5" : project.getJavaVersion());
+        //pomTemplate.setAttribute("projectVersion", StringUtils.isEmpty(project.getProjectVersion()) ? "1.0" : project
+        //							.getProjectVersion());
+        pomTemplate.setAttribute("projectVersion", StringUtils.isEmpty(project.getProjectVersion()) ? "1.0" : SonarPublisher.expandJenkinsVars(env, project
+                        		 .getProjectVersion()));
+        pomTemplate.setAttribute("javaVersion", StringUtils.isEmpty(project.getJavaVersion()) ? "1.5" : SonarPublisher.expandJenkinsVars(env,project.getJavaVersion()));
+        pomTemplate.setAttribute("compilerVersion", StringUtils.isEmpty(project.getCompilerVersion()) ? "" : SonarPublisher.expandJenkinsVars(env,project.getCompilerVersion()));
 
-        List<String> srcDirs = Utils.getProjectSrcDirsList(project.getProjectSrcDir(), root);
+        List<String> srcDirs = Utils.getProjectSrcDirsList(project.getProjectSrcDir(), root, env);
         boolean multiSources = srcDirs.size() > 1;
         setPomElement("sourceDirectory", srcDirs.size() == 0 ? "src" : srcDirs.get(0), pomTemplate);
         pomTemplate.setAttribute("srcDirsPlugin", multiSources ? generateSrcDirsPluginTemplate(srcDirs).toString() : "");
 
-        setPomElement("project.build.sourceEncoding", project.getProjectSrcEncoding(), pomTemplate);
-        setPomElement("encoding", project.getProjectSrcEncoding(), pomTemplate);
-        setPomElement("description", project.getProjectDescription(), pomTemplate);
+        setPomElement("project.build.sourceEncoding", SonarPublisher.expandJenkinsVars(env,project.getProjectSrcEncoding()), pomTemplate);
+        setPomElement("encoding", SonarPublisher.expandJenkinsVars(env,project.getProjectSrcEncoding()), pomTemplate);
+        //setPomElement("description", project.getProjectDescription(), pomTemplate);
+        setPomElement("description", SonarPublisher.expandJenkinsVars(env, project.getProjectDescription()), pomTemplate);
         setPomElement("sonar.phase", multiSources ? "generate-sources" : "", pomTemplate);
-        setPomElement("outputDirectory", project.getProjectBinDir(), pomTemplate);
+        setPomElement("outputDirectory", SonarPublisher.expandJenkinsVars(env,project.getProjectBinDir()), pomTemplate);
 
         setPomElement("sonar.language", project.getLanguage(), pomTemplate);
 

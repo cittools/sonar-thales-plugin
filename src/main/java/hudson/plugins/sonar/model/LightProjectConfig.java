@@ -52,6 +52,11 @@ public class LightProjectConfig {
 	 * Optional.
 	 */
 	private final String javaVersion;
+	
+	/**
+	 * 
+	 */
+	private final String compilerVersion;
 
 	/**
 	 * Mandatory.
@@ -87,12 +92,12 @@ public class LightProjectConfig {
 	public static final String ANT = "ant"; //TODO: to be handled
 	public static final String DEFAULT_BUILD_WAY = MAVEN;
 	
-	private final String javaOpts;
+	//private final String javaOpts;
 	
 	//private final String 
 
-	public LightProjectConfig(String groupId, String artifactId, String projectName) {
-		this(groupId, artifactId, projectName, null, null, null, null, null, null, null, null, null, null);
+	public LightProjectConfig(String groupId, String artifactId, String projectName, String compilerVersion) {
+		this(groupId, artifactId, projectName, compilerVersion, null, null, null, null, null, null, null, null, null);
 	}
 
 	//TODO : try to put javaOpts into BuildWay class
@@ -104,19 +109,21 @@ public class LightProjectConfig {
 			String projectVersion,
 			String projectDescription,
 			String javaVersion,
+			String compilerVersion,
 			String projectSrcDir,
 			String projectSrcEncoding,
 			String projectBinDir,
 			String language,
 			ReportsConfig reports,
-			BuildWay buildWay,
-			String javaOpts) {
+			BuildWay buildWay
+			) {
 		this.groupId = groupId;
 		this.artifactId = artifactId;
 		this.projectName = projectName;
 		this.projectVersion = projectVersion;
 		this.projectDescription = projectDescription;
 		this.javaVersion = javaVersion;
+		this.compilerVersion = compilerVersion;
 		this.projectSrcDir = projectSrcDir;
 		this.projectSrcEncoding = projectSrcEncoding;
 		this.language = language;
@@ -124,9 +131,8 @@ public class LightProjectConfig {
 		this.reports = reports;
 		this.buildWay = buildWay;
 		if (this.buildWay==null){
-			buildWay=new BuildWay(LightProjectConfig.DEFAULT_BUILD_WAY);
+			buildWay=new BuildWay(LightProjectConfig.DEFAULT_BUILD_WAY, "");
 		}
-		this.javaOpts=javaOpts;
 	}
 
 	public String getGroupId() {
@@ -151,6 +157,10 @@ public class LightProjectConfig {
 
 	public String getJavaVersion() {
 		return StringUtils.trimToEmpty(javaVersion);
+	}
+	
+	public String getCompilerVersion() {
+		return StringUtils.trimToEmpty(compilerVersion);
 	}
 
 	public String getProjectSrcDir() {
@@ -181,7 +191,5 @@ public class LightProjectConfig {
 		return buildWay;
 	}
 	
-	public String getJavaOpts() {
-		return javaOpts;
-	}
+
 }

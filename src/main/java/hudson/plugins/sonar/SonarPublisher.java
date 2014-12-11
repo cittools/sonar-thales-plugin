@@ -44,11 +44,13 @@ import hudson.tasks.Notifier;
 import hudson.tasks.Publisher;
 import hudson.tasks.Maven.MavenInstallation;
 import hudson.util.FormValidation;
+import hudson.util.LogTaskListener;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import net.sf.json.JSONObject;
@@ -324,7 +326,6 @@ public class SonarPublisher extends Notifier {
 		if (isSkip(build, listener, sonarInstallation)) {
 			return true;
 		}
-		build.addAction(new BuildSonarAction());
 
 		boolean sonarSuccess = false;
 		LightProjectConfig lightProjectConfig = getLightProject();
@@ -339,6 +340,7 @@ public class SonarPublisher extends Notifier {
 			}
 			else if (buildWayValue.equals(LightProjectConfig.JAVA_RUNNER)){
 				try {
+					EnvVars env = build.getEnvironment(listener);
 					String javaVersion = lightProjectConfig.getJavaVersion().isEmpty()?"1.5":lightProjectConfig.getJavaVersion();
 
 					//Properties for the java runner
@@ -351,7 +353,7 @@ public class SonarPublisher extends Notifier {
 
 					//Source directories
 					propertiesStringBuilder.append("sources=");
-					List<String> filePaths = Utils.getProjectSrcDirsList(lightProjectConfig.getProjectSrcDir(), build.getWorkspace());
+					List<String> filePaths = Utils.getProjectSrcDirsList(lightProjectConfig.getProjectSrcDir(), build.getWorkspace(), env);
 					if (!filePaths.isEmpty()){
 						for (String filePath : filePaths){
 							propertiesStringBuilder.append(filePath.replaceAll("\\\\", "/")).append(",");
@@ -380,10 +382,7 @@ public class SonarPublisher extends Notifier {
 					//Reuse report
 					if (lightProjectConfig.isReuseReports()){
 						propertiesStringBuilder.append("sonar.dynamicAnalysis=reuseReports\n");
-						if (lightProjectConfig.getReports().isUseTusarReports()){
-							propertiesStringBuilder.append("sonar.language=tusar\n").append("sonar.tusar.reportsPaths=generatedDTKITFiles/COVERAGE;generatedDTKITFiles/MEASURES;generatedDTKITFiles/VIOLATIONS;generatedDTKITFiles/TESTS\n");
-						}
-						else {
+						if (!lightProjectConfig.getReports().isUseTusarReports()){
 							if (lightProjectConfig.getReports().getCloverReportPath()!= null && !lightProjectConfig.getReports().getCloverReportPath().isEmpty()){
 								propertiesStringBuilder.append("sonar.clover.reportsPath=").append(lightProjectConfig.getReports().getCloverReportPath()).append("\n");
 							}
@@ -406,7 +405,9 @@ public class SonarPublisher extends Notifier {
 							propertiesStringBuilder.append(modifiedJobAdditionalProperties.trim()).append("\n");
 						}
 					}
-					String properties = propertiesStringBuilder.toString();
+					
+					//AM : expand the variables in the configuration
+					String properties = SonarPublisher.expandJenkinsVars(env,propertiesStringBuilder.toString());
 					sonarSuccess = executeSonarJavaRunner(build, launcher, listener, sonarInstallation,properties);
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
@@ -426,10 +427,14 @@ public class SonarPublisher extends Notifier {
 	}
 
 	private boolean executeSonarJavaRunner(AbstractBuild<?, ?> build,
-			Launcher launcher, BuildListener listener,
-			SonarInstallation sonarInstallation, String properties) throws IOException, InterruptedException {
+										   Launcher launcher, 
+										   BuildListener listener,
+										   SonarInstallation sonarInstallation, 
+										   String properties) 
+			throws IOException, InterruptedException 
+	{
 		SonarRunner sonarRunner = new SonarRunner(build.getProject(), launcher, build.getEnvironment(listener), build.getWorkspace());
-		return sonarRunner.launch(listener, getInstallation(), lightProject.getJavaOpts(), properties) == 0;
+		return sonarRunner.launch(listener, getInstallation(), lightProject.getBuildWay().getJavaOpts(), properties) == 0;
 	}
 
 	public MavenModuleSet getMavenProject(AbstractBuild build) {
@@ -462,10 +467,11 @@ public class SonarPublisher extends Notifier {
 	private boolean executeSonarMaven(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener, SonarInstallation sonarInstallation) {
 		try {
 			String pomName = getPomName(build, listener);
+			EnvVars env = build.getEnvironment(listener);
 			FilePath root = build.getWorkspace();
 			if (isUseSonarLight()) {
 				LOG.info("Generating " + pomName);
-				SonarPomGenerator.generatePomForNonMavenProject(getLightProject(), root, pomName);
+				SonarPomGenerator.generatePomForNonMavenProject(getLightProject(), root, pomName, env);
 			}
 			String mavenInstallationName = getMavenInstallationName();
 			if (isMavenBuilder(build.getProject())) {
@@ -494,6 +500,7 @@ public class SonarPublisher extends Notifier {
 		if (sonarInstallation == null) {
 			return null;
 		}
+		
 		String url = sonarInstallation.getServerLink();
 		if (project instanceof AbstractMavenProject) {
 			// Maven Project
@@ -515,9 +522,24 @@ public class SonarPublisher extends Notifier {
 		try {
 			AbstractBuild<?, ?> lastBuild = project.getLastBuild();
 			if (this.getLightProject() != null){
-    			url = sonarInstallation.getProjectLink(this.lightProject.getGroupId(), 
-    			                                       this.lightProject.getArtifactId(), 
-    			                                       this.branch);
+				/**
+				 * Modified JMD:
+				 * Cause fields like GroupId, ArtifactId can containing Jenkins variable in the form of ${VAR_NAME}
+				 * We invoke the local expand method on those to ensure that Jenkins variables will be corrrectly expanded
+				 */
+    			//url = sonarInstallation.getProjectLink(this.lightProject.getGroupId(), 
+				//				                       this.lightProject.getArtifactId(), 
+				//				                       this.branch);
+				
+				//AM : adding the real treatment to ensure that the variable are expanded (need at least one build)
+				if (lastBuild==null){
+					EnvVars env = project.getEnvironment(null, new LogTaskListener(Logger.getLogger(this.getClass().getName()), Level.INFO));
+					url = SonarPublisher.expandJenkinsVars(env,sonarInstallation.getProjectLink(this.lightProject.getGroupId(), this.lightProject.getArtifactId(), this.branch));
+				}
+				else {
+					EnvVars env = lastBuild.getEnvironment(new LogTaskListener(Logger.getLogger(this.getClass().getName()), Level.INFO));
+					url = SonarPublisher.expandJenkinsVars(env,sonarInstallation.getProjectLink(this.lightProject.getGroupId(), this.lightProject.getArtifactId(), this.branch));
+				}
     			
 			}else{
         		if (lastBuild != null) {
@@ -526,7 +548,7 @@ public class SonarPublisher extends Notifier {
     				String groupId = model.getGroupId();
     				String artifactId = model.getArtifactId();
     				url = sonarInstallation.getProjectLink(groupId, artifactId, getBranch());
-    				}
+    			}
 			}
 		} catch (IOException e) {
 			// ignore
@@ -535,6 +557,9 @@ public class SonarPublisher extends Notifier {
 		} catch (NullPointerException e) {
 			// ignore something in the line can be null for maven project
 			// Model model = reader.read(new InputStreamReader(lastBuild.getWorkspace().child(getPomName(lastBuild)).read()));
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		return url;
 	}
@@ -546,6 +571,28 @@ public class SonarPublisher extends Notifier {
 
 	public BuildStepMonitor getRequiredMonitorService() {
 		return BuildStepMonitor.BUILD;
+	}
+	
+	/**
+	 * Cause Jenkins variables (in the form of: ${VAR_NAME} ) can be used in every fields of the Jenkins 
+	 * job configuration form, this generical method is intended to allow expanding Jenkins variable 
+	 * for all form fields in a decoupled mode.
+	 * If the input string parameter contains a Jenkins variable it returns the well expanded string 
+	 * corresponding to the key parameter 'expandableJVars', else return the original string.
+	 * 
+	 * @param expandableJVars	String which could contain a Jenkins variable to expand
+	 * @param listener			the caller listener which contains the context
+	 * @return A string containing the expanded Jenkins variable content
+	 */
+	//public String expandJenkinsVars(AbstractBuild<?, ?> build, BuildListener listener, String expandableJVar) 
+	public static String expandJenkinsVars(EnvVars env, String expandableJVar) 
+			throws IOException, InterruptedException 
+	{
+		String resultStr = "";
+		//EnvVars env = build.getEnvironment(listener);
+		resultStr = env.expand(expandableJVar);
+		
+		return resultStr;
 	}
 
 
