@@ -78,7 +78,7 @@ public class SonarRunner {
 		this.build = null;
 	}
 
-	public int launch(BuildListener listener, SonarInstallation sonarInstallation, String javaOpts, String properties) throws IOException, InterruptedException {
+	/*public int launch(BuildListener listener, SonarInstallation sonarInstallation, String javaOpts, String properties) throws IOException, InterruptedException {
 		try {
 			extract();
 			ArgumentListBuilder args = buildCmdLine(listener, sonarInstallation, javaOpts, properties);
@@ -86,12 +86,12 @@ public class SonarRunner {
 		} finally {
 			cleanup();
 		}
-	}
+	}*/
 	
-	public int launch(BuildListener listener, SonarInstallation sonarInstallation, String javaOpts, String fileProperties, String commandLineProperties) throws IOException, InterruptedException {
+	public int launch(BuildListener listener, SonarInstallation sonarInstallation, String javaOpts, String fileProperties) throws IOException, InterruptedException {
 		try {
 			extract();
-			ArgumentListBuilder args = prepareCommandLine(listener, sonarInstallation, javaOpts, fileProperties, commandLineProperties);
+			ArgumentListBuilder args = prepareCommandLine(listener, sonarInstallation, javaOpts, fileProperties);
 			return launcher.launch().cmds(args).envs(envVars).stdout(listener).pwd(workDir).join();
 		} finally {
 			cleanup();
@@ -135,7 +135,7 @@ public class SonarRunner {
 		return args;
 	}
 	
-	ArgumentListBuilder prepareCommandLine(BuildListener listener, SonarInstallation sonarInstallation, String javaOpts, String fileProperties, String commandLineProperties) throws IOException, InterruptedException {
+	ArgumentListBuilder prepareCommandLine(BuildListener listener, SonarInstallation sonarInstallation, String javaOpts, String fileProperties) throws IOException, InterruptedException {
 		ArgumentListBuilder args = new ArgumentListBuilder();
 		// Java
 		args.add(getJavaExecutable(listener));
@@ -146,6 +146,8 @@ public class SonarRunner {
 		args.add(runnerJar.getRemote() + getClasspathDelimiter() + bootstrapperJar.getRemote());
 		// Main class
 		args.add("org.sonar.runner.Main");
+		// Debug trace
+		args.add("-e");
 		// Server properties
 		SonarInstallation si = sonarInstallation;
 		if (si != null) {
@@ -170,7 +172,9 @@ public class SonarRunner {
 				//Add sonar.tusar.reportsPaths property in the properties file and remove it from the actions
 				if(null != reportsParameter){
 					build.getActions().remove(a);
-					tusarProperties.append("sonar.language=tusar\nsonar.tusar.reportsPaths=").append(reportsParameter.value).append("\n");
+					//Keep only the report Paths from DTKIT plugin
+					//tusarProperties.append("sonar.language=tusar\nsonar.tusar.reportsPaths=").append(reportsParameter.value).append("\n");
+					tusarProperties.append("sonar.tusar.reportsPaths=").append(reportsParameter.value).append("\n");
 				}
 				else if(null != languageParameter){
 					build.getActions().remove(a);
@@ -178,16 +182,10 @@ public class SonarRunner {
 			}
 		}
 		
-		write(fileProperties+tusarProperties.toString());
+		write(envVars.expand(sonarInstallation.getAdditionalRunnerProperties())+"\n"+fileProperties+tusarProperties.toString());
 		appendArg(args,"project.settings",propertiesFileName);
-		appendArg(args,"sonar.projectBaseDir",workDir.getRemote());
+		appendArg(args,"project.home",workDir.getRemote());
 		
-		//Command line properties
-		Properties p = new Properties();
-		p.load(new ByteArrayInputStream(commandLineProperties.getBytes()));
-		for (Entry<Object, Object> entry : p.entrySet()) {
-			args.add("-D" + entry.getKey() + "=" + entry.getValue().toString());
-		}
 		return args;
 	}
 

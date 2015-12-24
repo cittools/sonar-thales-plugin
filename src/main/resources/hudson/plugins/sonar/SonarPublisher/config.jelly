@@ -134,12 +134,13 @@
             </f:entry>
 
             <f:entry title="${%JavaVersion}" description="${%JavaVersionDescr}">
-              <f:textbox name="javaVersion" value="${instance.lightProject.javaVersion}"/>
+              <f:textbox name="javaVersion" value="${instance.lightProject.javaVersion}"
+                         checkUrl="'${rootURL}/publisher/SonarPublisher/checkJavaWarning?value='+escape(this.value)"/>
             </f:entry>
 
             <f:entry title="${%CompilerVersion}" description="${%CompilerVersionDescr}">
               <f:textbox name="compilerVersion" value="${instance.lightProject.compilerVersion}"
-                         checkUrl="'${rootURL}/publisher/SonarPublisher/checkMandatory?value='+escape(this.value)"/>
+                         checkUrl="'${rootURL}/publisher/SonarPublisher/checkRecommendedMaven?value='+escape(this.value)"/>
             </f:entry>
 
             <f:optionalBlock name="reports" title="${%ReuseReports}"

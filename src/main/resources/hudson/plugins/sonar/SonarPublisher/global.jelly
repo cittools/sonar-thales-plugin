@@ -52,6 +52,10 @@
             <f:entry title="${%AddProps}" description="${%AddPropsDescr}">
               <f:textbox name="sonar.additionalProperties" value="${inst.getAdditionalProperties()}"/>
             </f:entry>
+            
+            <f:entry title="${%AddRunnerProps}" description="${%AddRunnerPropsDescr}">
+              <f:expandableTextbox name="sonar.additionalRunnerProperties" value="${inst.getAdditionalRunnerProperties()}"/>
+            </f:entry>
 
             <f:section title="${%BuildTriggers}" name="triggers">
               <st:include class="${descriptor.clazz}" page="triggers.jelly" it="${inst.getTriggers()}"/>

@@ -30,6 +30,7 @@ import hudson.model.AbstractProject;
 import hudson.model.Action;
 import hudson.model.BuildListener;
 import hudson.model.Hudson;
+import hudson.model.ParametersAction;
 import hudson.model.Result;
 import hudson.plugins.sonar.model.LightProjectConfig;
 import hudson.plugins.sonar.model.TriggersConfig;
@@ -335,6 +336,14 @@ public class SonarPublisher extends Notifier {
 		else {
 			//TODO : refactor
 			String buildWayValue = lightProjectConfig.getBuildWay().getValue();
+		    
+			//if the TUSAR checkbox is not checked, remove Parameters (filled by TUSARNotifier plugin)
+			if (lightProjectConfig!=null){
+		        if (lightProjectConfig.getReports() == null || (lightProjectConfig.getReports()!=null && !lightProjectConfig.getReports().isUseTusarReports())) {
+		    	    build.getActions().remove(build.getAction(ParametersAction.class));
+		        }
+		    }
+			
 			if (buildWayValue.equals(LightProjectConfig.MAVEN)){
 				sonarSuccess = executeSonarMaven(build, launcher, listener, sonarInstallation);
 			}
@@ -466,7 +475,7 @@ public class SonarPublisher extends Notifier {
 	{
 		//SonarRunner sonarRunner = new SonarRunner(build.getProject(), launcher, build.getEnvironment(listener), build.getWorkspace());
 		SonarRunner sonarRunner = new SonarRunner(build, launcher, build.getEnvironment(listener));
-		return sonarRunner.launch(listener, getInstallation(), lightProject.getBuildWay().getJavaOpts(), fileProperties, commandLineProperties) == 0;
+		return sonarRunner.launch(listener, getInstallation(), lightProject.getBuildWay().getJavaOpts(), fileProperties) == 0;
 	}
 
 	public MavenModuleSet getMavenProject(AbstractBuild build) {
@@ -697,7 +706,19 @@ public class SonarPublisher extends Notifier {
 		@SuppressWarnings({ "UnusedDeclaration", "ThrowableResultOfMethodCallIgnored" })
 		public FormValidation doCheckRecommendedRunner(@QueryParameter String value) {
 			return StringUtils.isBlank(value) ?
-					FormValidation.warning(Messages.SonarPublisher_RecommendedRunner()) : FormValidation.ok();
+					FormValidation.error(Messages.SonarPublisher_RecommendedRunner()) : FormValidation.ok();
+		}
+		
+		@SuppressWarnings({ "UnusedDeclaration", "ThrowableResultOfMethodCallIgnored" })
+		public FormValidation doCheckRecommendedMaven(@QueryParameter String value) {
+			return StringUtils.isBlank(value) ?
+					FormValidation.error(Messages.SonarPublisher_RecommendedMaven()) : FormValidation.ok();
+		}
+		
+		@SuppressWarnings({ "UnusedDeclaration", "ThrowableResultOfMethodCallIgnored" })
+		public FormValidation doCheckJavaWarning(@QueryParameter String value) {
+			return StringUtils.isBlank(value) ?
+					FormValidation.warning(Messages.SonarPublisher_JavaVersionWarn()) : FormValidation.ok();
 		}
 
 		@Override

@@ -40,11 +40,16 @@ public class SonarInstallation {
 	private final String databaseLogin;
 	private final String databasePassword;
 	private final String additionalProperties;
+	
+	/**
+	 * @since 1.6.1.thales.13
+	 */
+	private final String additionalRunnerProperties;
 
 	private TriggersConfig triggers;
 
 	/**
-	 * @since 1.6.thales.10
+	 * @since 1.6.1.thales.10
 	 */
 	private final boolean fourOrHigher;
 
@@ -56,7 +61,7 @@ public class SonarInstallation {
 	public SonarInstallation(String name, boolean disabled,
 			String serverUrl, String serverPublicUrl,
 			String databaseUrl, String databaseDriver, String databaseLogin, String databasePassword,
-			String mojoVersion, String additionalProperties, TriggersConfig triggers, boolean fourOrHigher) {
+			String mojoVersion, String additionalProperties, String additionalRunnerProperties, TriggersConfig triggers, boolean fourOrHigher) {
 		this.name = name;
 		this.disabled = disabled;
 		this.serverUrl = serverUrl;
@@ -67,8 +72,18 @@ public class SonarInstallation {
 		this.databasePassword = databasePassword;
 		this.mojoVersion = mojoVersion;
 		this.additionalProperties = additionalProperties;
+		this.additionalRunnerProperties = additionalRunnerProperties;
 		this.triggers = triggers;
 		this.fourOrHigher = fourOrHigher;
+	}
+	
+	public SonarInstallation(String name, boolean disabled,
+			String serverUrl, String serverPublicUrl,
+			String databaseUrl, String databaseDriver, String databaseLogin, String databasePassword,
+			String mojoVersion, String additionalProperties, TriggersConfig triggers, boolean fourOrHigher) {
+		
+		this(name, disabled, serverUrl, serverPublicUrl,databaseUrl,databaseDriver,databaseLogin,databasePassword,mojoVersion,
+				additionalProperties,null,triggers,fourOrHigher);
 	}
 
 	public SonarInstallation(String name, boolean disabled,
@@ -182,5 +197,9 @@ public class SonarInstallation {
 
 	public String getComponentLink(String groupId, String artifactId) {
 		return getServerLink("/components/index/", groupId, artifactId);
+	}
+
+	public String getAdditionalRunnerProperties() {
+		return additionalRunnerProperties;
 	}
 }

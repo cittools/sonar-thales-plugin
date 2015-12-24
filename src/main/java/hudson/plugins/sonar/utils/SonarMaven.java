@@ -104,7 +104,7 @@ public final class SonarMaven extends Maven {
      */
     LightProjectConfig lightProjectConfig = sonarPublisher.getLightProject();
     if (lightProjectConfig!=null){
-        if (lightProjectConfig.getReports()!=null && !lightProjectConfig.getReports().isUseTusarReports()) {
+        if (lightProjectConfig.getReports() == null || (lightProjectConfig.getReports()!=null && !lightProjectConfig.getReports().isUseTusarReports())) {
     	    build.getActions().remove(build.getAction(ParametersAction.class));
         }
     }

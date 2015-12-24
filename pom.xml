@@ -12,7 +12,7 @@
   -->
 
   <artifactId>sonar</artifactId>
-  <version>1.6.1.thales.11</version>
+  <version>1.6.1.thales.15</version>
   <packaging>hpi</packaging>
   <name>Hudson Sonar Plugin - Thales</name>
   <url>http://wiki.hudson-ci.org/display/HUDSON/Sonar+Plugin</url>
