@@ -60,41 +60,33 @@ public class Utils {
 	        	}
 	        }
 	    }
-	
-	    List<FilePath> paths = SonarPomGenerator.listFiles(root, new FileFilter() {
-	        @Override
-	        public boolean accept(File pathname) {
-	            for (String pattern : wildcards) {
-	                if (FilenameUtils.wildcardMatch(pathname.getPath().replace('\\', '/'), pattern.replace('\\', '/'))){
-	                    return true;
-	                }
-	                //TODO : Tmp fix : try to add the workspace to the pattern for the case : folder/*/anotherFolder
-	                else {
-	                	String modifiedPattern = root.getRemote()+"/";
-	                	if (modifiedPattern.endsWith("/") || modifiedPattern.endsWith("\\")){
-	                		modifiedPattern = modifiedPattern.substring(0, modifiedPattern.length()-1);
-	                	}
-	                	modifiedPattern = modifiedPattern + "/"+ pattern;
-	                	if (FilenameUtils.wildcardMatch(pathname.getPath().replace('\\', '/'), modifiedPattern.replace('\\', '/'))){
-	                		return true;
-	                	}
-	                }
-	            }
-	            return false;
-	        }
-	    });
-	
-	    for (FilePath path : paths) {
-	        String srcDir = path.getRemote();
-	        srcDir = srcDir.substring(root.getRemote().length());
-	        if (srcDir.isEmpty()) {
-	            srcDir = ".";
-	        } else {
-	            while (srcDir.startsWith("/") || srcDir.startsWith("\\")) {
-	                srcDir = srcDir.substring(1);
-	            }
-	        }
-	        sourceDirs.add(srcDir);
+	    
+	    if (!wildcards.isEmpty()){
+	    	List<FilePath> paths = SonarPomGenerator.listFiles(root, new FileFilter() {
+		        @Override
+		        public boolean accept(File pathname) {
+		            for (String pattern : wildcards) {
+		                if (FilenameUtils.wildcardMatch(pathname.getPath().replace('\\', '/'), pattern.replace('\\', '/'))){
+		                    return true;
+		                }
+		                //TODO : Tmp fix : try to add the workspace to the pattern for the case : folder/*/anotherFolder
+		                else {
+		                	String modifiedPattern = root.getRemote()+"/";
+		                	if (modifiedPattern.endsWith("/") || modifiedPattern.endsWith("\\")){
+		                		modifiedPattern = modifiedPattern.substring(0, modifiedPattern.length()-1);
+		                	}
+		                	modifiedPattern = modifiedPattern + "/"+ pattern;
+		                	if (FilenameUtils.wildcardMatch(pathname.getPath().replace('\\', '/'), modifiedPattern.replace('\\', '/'))){
+		                		return true;
+		                	}
+		                }
+		            }
+		            return false;
+		        }
+		    });
+		    for (FilePath path : paths) {
+		    	sourceDirs.add(path.getRemote());
+		    }
 	    }
 	
 	    return sourceDirs;

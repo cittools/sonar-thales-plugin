@@ -32,6 +32,7 @@
     $sonar.cobertura.reportPath$
     $sonar.clover.reportPath$
     $sonar.phase$
+    $sonar.sources$
     $sonar.language$
   </properties>
 </project>

@@ -341,20 +341,31 @@ public class SonarPublisher extends Notifier {
 			else if (buildWayValue.equals(LightProjectConfig.JAVA_RUNNER)){
 				try {
 					EnvVars env = build.getEnvironment(listener);
-					String javaVersion = lightProjectConfig.getJavaVersion().isEmpty()?"1.5":lightProjectConfig.getJavaVersion();
+					//String javaVersion = lightProjectConfig.getJavaVersion().isEmpty()?"1.5":lightProjectConfig.getJavaVersion();
 
 					//Properties for the java runner
-					StringBuilder propertiesStringBuilder = new StringBuilder()
-					.append("sonar.projectKey=").append(lightProjectConfig.getGroupId()).append(":").append(lightProjectConfig.getArtifactId()).append("\n")
-					.append("sonar.projectName=").append(lightProjectConfig.getProjectName()).append("\n")
-					.append("sonar.projectVersion=").append(lightProjectConfig.getProjectVersion().isEmpty()?"1.0":lightProjectConfig.getProjectVersion()).append("\n")
-					.append("sonar.java.source=").append(javaVersion).append("\n")
-					.append("sonar.java.target=").append(javaVersion).append("\n");
+					StringBuilder propertiesStringBuilder = new StringBuilder();
+					
+					//Since 1.6.1.thales.10, if using the sonar runner, you can fill the new field where you can put the runner properties, thus the following are now optional
+					if (lightProjectConfig.getGroupId()!=null && !lightProjectConfig.getGroupId().trim().isEmpty() && lightProjectConfig.getArtifactId()!=null && !lightProjectConfig.getArtifactId().trim().isEmpty()){
+						propertiesStringBuilder.append("sonar.projectKey=").append(lightProjectConfig.getGroupId()).append(":").append(lightProjectConfig.getArtifactId()).append("\n");
+					}
+					if (lightProjectConfig.getProjectName()!=null && !lightProjectConfig.getProjectName().trim().isEmpty()){
+						propertiesStringBuilder.append("sonar.projectName=").append(lightProjectConfig.getProjectName()).append("\n");
+					}
+					if (lightProjectConfig.getProjectVersion()!=null && !lightProjectConfig.getProjectVersion().trim().isEmpty()){
+						propertiesStringBuilder.append("sonar.projectVersion=").append(lightProjectConfig.getProjectVersion()).append("\n");
+					}
+					if (lightProjectConfig.getJavaVersion()!=null && !lightProjectConfig.getJavaVersion().trim().isEmpty()){
+						propertiesStringBuilder.append("sonar.java.source=").append(lightProjectConfig.getJavaVersion()).append("\n");
+						propertiesStringBuilder.append("sonar.java.target=").append(lightProjectConfig.getJavaVersion()).append("\n");
+					}
+
 
 					//Source directories
-					propertiesStringBuilder.append("sources=");
 					List<String> filePaths = Utils.getProjectSrcDirsList(lightProjectConfig.getProjectSrcDir(), build.getWorkspace(), env);
 					if (!filePaths.isEmpty()){
+						propertiesStringBuilder.append("sonar.sources=");
 						for (String filePath : filePaths){
 							propertiesStringBuilder.append(filePath.replaceAll("\\\\", "/")).append(",");
 						}
@@ -365,23 +376,25 @@ public class SonarPublisher extends Notifier {
 
 					//Binaries directory
 					if (!lightProjectConfig.getProjectBinDir().isEmpty()) {
-						propertiesStringBuilder.append("binaries=").append(lightProjectConfig.getProjectBinDir()).append("\n");
+						propertiesStringBuilder.append("sonar.binaries=").append(lightProjectConfig.getProjectBinDir()).append("\n");
 					}
 
 					//Description
 					if (!lightProjectConfig.getProjectDescription().isEmpty()){
-						propertiesStringBuilder.append("description=").append(lightProjectConfig.getProjectDescription()).append("\n");
+						propertiesStringBuilder.append("sonar.description=").append(lightProjectConfig.getProjectDescription()).append("\n");
 					}
-					
+
 					//Source encoding
 					if (!lightProjectConfig.getProjectSrcEncoding().isEmpty()){
 						propertiesStringBuilder.append("sonar.sourceEncoding=").append(lightProjectConfig.getProjectSrcEncoding()).append("\n");
 					}
-					
+
 
 					//Reuse report
 					if (lightProjectConfig.isReuseReports()){
-						propertiesStringBuilder.append("sonar.dynamicAnalysis=reuseReports\n");
+						if (!sonarInstallation.isFourOrHigher()){
+							propertiesStringBuilder.append("sonar.dynamicAnalysis=reuseReports\n");
+						}
 						if (!lightProjectConfig.getReports().isUseTusarReports()){
 							if (lightProjectConfig.getReports().getCloverReportPath()!= null && !lightProjectConfig.getReports().getCloverReportPath().isEmpty()){
 								propertiesStringBuilder.append("sonar.clover.reportsPath=").append(lightProjectConfig.getReports().getCloverReportPath()).append("\n");
@@ -394,21 +407,27 @@ public class SonarPublisher extends Notifier {
 							}
 						}
 					}
+					if (lightProjectConfig.getSonarRunnerAdditionalProperties()!=null && !lightProjectConfig.getSonarRunnerAdditionalProperties().trim().isEmpty()){
+						propertiesStringBuilder.append(lightProjectConfig.getSonarRunnerAdditionalProperties()).append("\n");
+					}
+					
+					StringBuilder commandLinePropertiesBuilder = new StringBuilder();
 					if (jobAdditionalProperties!=null && !jobAdditionalProperties.isEmpty()){
 						/*String modifiedJobAdditionalProperties = jobAdditionalProperties;
 						if (modifiedJobAdditionalProperties.startsWith("-D")){
 							modifiedJobAdditionalProperties = modifiedJobAdditionalProperties.substring(2);
 						}
 						propertiesStringBuilder.append(modifiedJobAdditionalProperties).append("\n");*/
-						
+
 						for (String modifiedJobAdditionalProperties : jobAdditionalProperties.split("-D")){
-							propertiesStringBuilder.append(modifiedJobAdditionalProperties.trim()).append("\n");
+							commandLinePropertiesBuilder.append(modifiedJobAdditionalProperties.trim()).append("\n");
 						}
 					}
-					
+
 					//AM : expand the variables in the configuration
 					String properties = SonarPublisher.expandJenkinsVars(env,propertiesStringBuilder.toString());
-					sonarSuccess = executeSonarJavaRunner(build, launcher, listener, sonarInstallation,properties);
+					String commandLineProperties = SonarPublisher.expandJenkinsVars(env,commandLinePropertiesBuilder.toString());
+					sonarSuccess = executeSonarJavaRunner(build, launcher, listener, sonarInstallation,properties,commandLineProperties);
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -426,15 +445,28 @@ public class SonarPublisher extends Notifier {
 		return sonarSuccess;
 	}
 
-	private boolean executeSonarJavaRunner(AbstractBuild<?, ?> build,
-										   Launcher launcher, 
-										   BuildListener listener,
-										   SonarInstallation sonarInstallation, 
-										   String properties) 
-			throws IOException, InterruptedException 
+	/*private boolean executeSonarJavaRunner(AbstractBuild<?, ?> build,
+			Launcher launcher, 
+			BuildListener listener,
+			SonarInstallation sonarInstallation, 
+			String properties) 
+	throws IOException, InterruptedException 
 	{
 		SonarRunner sonarRunner = new SonarRunner(build.getProject(), launcher, build.getEnvironment(listener), build.getWorkspace());
 		return sonarRunner.launch(listener, getInstallation(), lightProject.getBuildWay().getJavaOpts(), properties) == 0;
+	}*/
+
+	private boolean executeSonarJavaRunner(AbstractBuild<?, ?> build,
+			Launcher launcher, 
+			BuildListener listener,
+			SonarInstallation sonarInstallation, 
+			String fileProperties,
+			String commandLineProperties) 
+	throws IOException, InterruptedException 
+	{
+		//SonarRunner sonarRunner = new SonarRunner(build.getProject(), launcher, build.getEnvironment(listener), build.getWorkspace());
+		SonarRunner sonarRunner = new SonarRunner(build, launcher, build.getEnvironment(listener));
+		return sonarRunner.launch(listener, getInstallation(), lightProject.getBuildWay().getJavaOpts(), fileProperties, commandLineProperties) == 0;
 	}
 
 	public MavenModuleSet getMavenProject(AbstractBuild build) {
@@ -471,7 +503,8 @@ public class SonarPublisher extends Notifier {
 			FilePath root = build.getWorkspace();
 			if (isUseSonarLight()) {
 				LOG.info("Generating " + pomName);
-				SonarPomGenerator.generatePomForNonMavenProject(getLightProject(), root, pomName, env);
+				listener.getLogger().println("[SonarPlugin] [INFO] Generating POM...");
+				SonarPomGenerator.generatePomForNonMavenProject(getLightProject(), root, pomName, env, sonarInstallation.isFourOrHigher());
 			}
 			String mavenInstallationName = getMavenInstallationName();
 			if (isMavenBuilder(build.getProject())) {
@@ -500,7 +533,7 @@ public class SonarPublisher extends Notifier {
 		if (sonarInstallation == null) {
 			return null;
 		}
-		
+
 		String url = sonarInstallation.getServerLink();
 		if (project instanceof AbstractMavenProject) {
 			// Maven Project
@@ -527,10 +560,10 @@ public class SonarPublisher extends Notifier {
 				 * Cause fields like GroupId, ArtifactId can containing Jenkins variable in the form of ${VAR_NAME}
 				 * We invoke the local expand method on those to ensure that Jenkins variables will be corrrectly expanded
 				 */
-    			//url = sonarInstallation.getProjectLink(this.lightProject.getGroupId(), 
+				//url = sonarInstallation.getProjectLink(this.lightProject.getGroupId(), 
 				//				                       this.lightProject.getArtifactId(), 
 				//				                       this.branch);
-				
+
 				//AM : adding the real treatment to ensure that the variable are expanded (need at least one build)
 				if (lastBuild==null){
 					EnvVars env = project.getEnvironment(null, new LogTaskListener(Logger.getLogger(this.getClass().getName()), Level.INFO));
@@ -540,15 +573,15 @@ public class SonarPublisher extends Notifier {
 					EnvVars env = lastBuild.getEnvironment(new LogTaskListener(Logger.getLogger(this.getClass().getName()), Level.INFO));
 					url = SonarPublisher.expandJenkinsVars(env,sonarInstallation.getProjectLink(this.lightProject.getGroupId(), this.lightProject.getArtifactId(), this.branch));
 				}
-    			
+
 			}else{
-        		if (lastBuild != null) {
-    				MavenXpp3Reader reader = new MavenXpp3Reader();
-    				Model model = reader.read(new InputStreamReader(lastBuild.getWorkspace().child(getPomName(lastBuild)).read()));
-    				String groupId = model.getGroupId();
-    				String artifactId = model.getArtifactId();
-    				url = sonarInstallation.getProjectLink(groupId, artifactId, getBranch());
-    			}
+				if (lastBuild != null) {
+					MavenXpp3Reader reader = new MavenXpp3Reader();
+					Model model = reader.read(new InputStreamReader(lastBuild.getWorkspace().child(getPomName(lastBuild)).read()));
+					String groupId = model.getGroupId();
+					String artifactId = model.getArtifactId();
+					url = sonarInstallation.getProjectLink(groupId, artifactId, getBranch());
+				}
 			}
 		} catch (IOException e) {
 			// ignore
@@ -572,7 +605,7 @@ public class SonarPublisher extends Notifier {
 	public BuildStepMonitor getRequiredMonitorService() {
 		return BuildStepMonitor.BUILD;
 	}
-	
+
 	/**
 	 * Cause Jenkins variables (in the form of: ${VAR_NAME} ) can be used in every fields of the Jenkins 
 	 * job configuration form, this generical method is intended to allow expanding Jenkins variable 
@@ -586,12 +619,12 @@ public class SonarPublisher extends Notifier {
 	 */
 	//public String expandJenkinsVars(AbstractBuild<?, ?> build, BuildListener listener, String expandableJVar) 
 	public static String expandJenkinsVars(EnvVars env, String expandableJVar) 
-			throws IOException, InterruptedException 
+	throws IOException, InterruptedException 
 	{
 		String resultStr = "";
 		//EnvVars env = build.getEnvironment(listener);
 		resultStr = env.expand(expandableJVar);
-		
+
 		return resultStr;
 	}
 
@@ -630,7 +663,7 @@ public class SonarPublisher extends Notifier {
 			this.installations = installations;
 			save();
 		}
-		
+
 		/**
 		 * This method is used in UI, so signature and location of this method is important (see SONARPLUGINS-1337).
 		 * 
@@ -659,6 +692,12 @@ public class SonarPublisher extends Notifier {
 		public FormValidation doCheckMandatoryAndNoSpaces(@QueryParameter String value) {
 			return (StringUtils.isBlank(value) || value.contains(" ")) ?
 					FormValidation.error(Messages.SonarPublisher_MandatoryPropertySpaces()) : FormValidation.ok();
+		}
+		
+		@SuppressWarnings({ "UnusedDeclaration", "ThrowableResultOfMethodCallIgnored" })
+		public FormValidation doCheckRecommendedRunner(@QueryParameter String value) {
+			return StringUtils.isBlank(value) ?
+					FormValidation.warning(Messages.SonarPublisher_RecommendedRunner()) : FormValidation.ok();
 		}
 
 		@Override

@@ -12,7 +12,7 @@
   -->
 
   <artifactId>sonar</artifactId>
-  <version>1.6.1.thales.9</version>
+  <version>1.6.1.thales.11</version>
   <packaging>hpi</packaging>
   <name>Hudson Sonar Plugin - Thales</name>
   <url>http://wiki.hudson-ci.org/display/HUDSON/Sonar+Plugin</url>
@@ -197,14 +197,17 @@
                 <artifactItem>
                   <groupId>org.codehaus.sonar</groupId>
                   <artifactId>sonar-batch-bootstrapper</artifactId>
-                  <version>2.6</version>
+                  <version>3.2.1</version>
                   <outputDirectory>${project.build.directory}/classes</outputDirectory>
                   <destFileName>sonar-batch-bootstrapper.jar</destFileName>
                 </artifactItem>
                 <artifactItem>
-                  <groupId>org.codehaus.sonar-plugins</groupId>
+                  <!-- <groupId>org.codehaus.sonar-plugins</groupId>
                   <artifactId>sonar-runner</artifactId>
-                  <version>1.2</version>
+                  <version>1.2</version> -->
+                  <groupId>org.codehaus.sonar.runner</groupId>
+                  <artifactId>sonar-runner-dist</artifactId>
+                  <version>2.4</version>
                   <outputDirectory>${project.build.directory}/classes</outputDirectory>
                   <destFileName>sonar-runner.jar</destFileName>
                 </artifactItem>

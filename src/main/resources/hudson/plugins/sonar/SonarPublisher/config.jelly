@@ -89,7 +89,7 @@
           <!-- 1.6.1.thales.3 : Allowing another kind of analysis-->
           <f:section title="${%Build way}">
             <f:radioBlock name="buildWay" value="maven" title="Maven" checked="${instance.lightProject.buildWay.value=='maven'}"/>
-            <f:radioBlock name="buildWay" value="javaRunner" title="Java Runner" checked="${instance.lightProject.buildWay.value=='javaRunner'}">
+            <f:radioBlock name="buildWay" value="javaRunner" title="Sonar Runner" checked="${instance.lightProject.buildWay.value=='javaRunner'}">
                 <f:entry title="${%JVMOptions}" field="javaOpts">
                     <f:expandableTextbox value="${instance.lightProject.buildWay.javaOpts}"/>
                 </f:entry>
@@ -116,7 +116,8 @@
             </f:entry>
 
             <f:entry title="${%ProjectVersion}" description="${%ProjectVersionDescr}">
-              <f:textbox name="projectVersion" value="${instance.lightProject.projectVersion}"/>
+              <f:textbox name="projectVersion" value="${instance.lightProject.projectVersion}"
+                        checkUrl="'${rootURL}/publisher/SonarPublisher/checkRecommendedRunner?value='+escape(this.value)"/>
             </f:entry>
 
             <f:entry title="${%SrcDirs}" description="${%SrcDirsDescr}">
@@ -137,7 +138,8 @@
             </f:entry>
 
             <f:entry title="${%CompilerVersion}" description="${%CompilerVersionDescr}">
-              <f:textbox name="compilerVersion" value="${instance.lightProject.compilerVersion}"/>
+              <f:textbox name="compilerVersion" value="${instance.lightProject.compilerVersion}"
+                         checkUrl="'${rootURL}/publisher/SonarPublisher/checkMandatory?value='+escape(this.value)"/>
             </f:entry>
 
             <f:optionalBlock name="reports" title="${%ReuseReports}"
@@ -162,6 +164,11 @@
                 </f:entry>
               </f:section>
             </f:optionalBlock>
+          </f:section>
+          <f:section title="${%SonarRunnerProperties}">
+            <f:entry title="" description="" help="/plugin/sonar/help-runner-additional.html">
+                <f:expandableTextbox name="sonarRunnerAdditionalProperties" value="${instance.lightProject.sonarRunnerAdditionalProperties}"/>
+            </f:entry>
           </f:section>
         </f:optionalBlock>
       </table>

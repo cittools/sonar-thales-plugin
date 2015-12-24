@@ -92,15 +92,15 @@ public class LightProjectConfig {
 	public static final String ANT = "ant"; //TODO: to be handled
 	public static final String DEFAULT_BUILD_WAY = MAVEN;
 	
-	//private final String javaOpts;
-	
-	//private final String 
+	/**
+	 * @since 1.6.1.thales.10
+	 */
+	private final String sonarRunnerAdditionalProperties;
 
 	public LightProjectConfig(String groupId, String artifactId, String projectName, String compilerVersion) {
 		this(groupId, artifactId, projectName, compilerVersion, null, null, null, null, null, null, null, null, null);
 	}
 
-	//TODO : try to put javaOpts into BuildWay class
 	@DataBoundConstructor
 	public LightProjectConfig(
 			String groupId,
@@ -115,8 +115,8 @@ public class LightProjectConfig {
 			String projectBinDir,
 			String language,
 			ReportsConfig reports,
-			BuildWay buildWay
-			) {
+			BuildWay buildWay,
+			String sonarRunnerAdditionalProperties) {
 		this.groupId = groupId;
 		this.artifactId = artifactId;
 		this.projectName = projectName;
@@ -133,6 +133,25 @@ public class LightProjectConfig {
 		if (this.buildWay==null){
 			buildWay=new BuildWay(LightProjectConfig.DEFAULT_BUILD_WAY, "");
 		}
+		this.sonarRunnerAdditionalProperties = sonarRunnerAdditionalProperties;
+	}
+	
+	public LightProjectConfig(
+			String groupId,
+			String artifactId,
+			String projectName,
+			String projectVersion,
+			String projectDescription,
+			String javaVersion,
+			String compilerVersion,
+			String projectSrcDir,
+			String projectSrcEncoding,
+			String projectBinDir,
+			String language,
+			ReportsConfig reports,
+			BuildWay buildWay) {
+		
+		this(groupId, artifactId,projectName,projectVersion,projectDescription,javaVersion,compilerVersion,projectSrcDir,projectSrcEncoding,projectBinDir,language,reports, buildWay,"");
 	}
 
 	public String getGroupId() {
@@ -191,5 +210,7 @@ public class LightProjectConfig {
 		return buildWay;
 	}
 	
-
+	public String getSonarRunnerAdditionalProperties() {
+		return sonarRunnerAdditionalProperties;
+	}
 }
