@@ -44,11 +44,13 @@ import hudson.tasks.Notifier;
 import hudson.tasks.Publisher;
 import hudson.tasks.Maven.MavenInstallation;
 import hudson.util.FormValidation;
+import hudson.util.LogTaskListener;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import net.sf.json.JSONObject;
@@ -324,7 +326,6 @@ public class SonarPublisher extends Notifier {
 		if (isSkip(build, listener, sonarInstallation)) {
 			return true;
 		}
-		build.addAction(new BuildSonarAction());
 
 		boolean sonarSuccess = false;
 		LightProjectConfig lightProjectConfig = getLightProject();
@@ -339,6 +340,7 @@ public class SonarPublisher extends Notifier {
 			}
 			else if (buildWayValue.equals(LightProjectConfig.JAVA_RUNNER)){
 				try {
+					EnvVars env = build.getEnvironment(listener);
 					String javaVersion = lightProjectConfig.getJavaVersion().isEmpty()?"1.5":lightProjectConfig.getJavaVersion();
 
 					//Properties for the java runner
@@ -351,7 +353,7 @@ public class SonarPublisher extends Notifier {
 
 					//Source directories
 					propertiesStringBuilder.append("sources=");
-					List<String> filePaths = Utils.getProjectSrcDirsList(lightProjectConfig.getProjectSrcDir(), build.getWorkspace());
+					List<String> filePaths = Utils.getProjectSrcDirsList(lightProjectConfig.getProjectSrcDir(), build.getWorkspace(), env);
 					if (!filePaths.isEmpty()){
 						for (String filePath : filePaths){
 							propertiesStringBuilder.append(filePath.replaceAll("\\\\", "/")).append(",");
@@ -403,7 +405,9 @@ public class SonarPublisher extends Notifier {
 							propertiesStringBuilder.append(modifiedJobAdditionalProperties.trim()).append("\n");
 						}
 					}
-					String properties = propertiesStringBuilder.toString();
+					
+					//AM : expand the variables in the configuration
+					String properties = SonarPublisher.expandJenkinsVars(env,propertiesStringBuilder.toString());
 					sonarSuccess = executeSonarJavaRunner(build, launcher, listener, sonarInstallation,properties);
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
@@ -496,6 +500,7 @@ public class SonarPublisher extends Notifier {
 		if (sonarInstallation == null) {
 			return null;
 		}
+		
 		String url = sonarInstallation.getServerLink();
 		if (project instanceof AbstractMavenProject) {
 			// Maven Project
@@ -525,9 +530,16 @@ public class SonarPublisher extends Notifier {
     			//url = sonarInstallation.getProjectLink(this.lightProject.getGroupId(), 
 				//				                       this.lightProject.getArtifactId(), 
 				//				                       this.branch);
-    			url = sonarInstallation.getProjectLink(this.lightProject.getGroupId(), 
-								                       this.lightProject.getArtifactId(), 
-								                       this.branch);
+				
+				//AM : adding the real treatment to ensure that the variable are expanded (need at least one build)
+				if (lastBuild==null){
+					EnvVars env = project.getEnvironment(null, new LogTaskListener(Logger.getLogger(this.getClass().getName()), Level.INFO));
+					url = SonarPublisher.expandJenkinsVars(env,sonarInstallation.getProjectLink(this.lightProject.getGroupId(), this.lightProject.getArtifactId(), this.branch));
+				}
+				else {
+					EnvVars env = lastBuild.getEnvironment(new LogTaskListener(Logger.getLogger(this.getClass().getName()), Level.INFO));
+					url = SonarPublisher.expandJenkinsVars(env,sonarInstallation.getProjectLink(this.lightProject.getGroupId(), this.lightProject.getArtifactId(), this.branch));
+				}
     			
 			}else{
         		if (lastBuild != null) {
@@ -536,7 +548,7 @@ public class SonarPublisher extends Notifier {
     				String groupId = model.getGroupId();
     				String artifactId = model.getArtifactId();
     				url = sonarInstallation.getProjectLink(groupId, artifactId, getBranch());
-    				}
+    			}
 			}
 		} catch (IOException e) {
 			// ignore
@@ -545,6 +557,9 @@ public class SonarPublisher extends Notifier {
 		} catch (NullPointerException e) {
 			// ignore something in the line can be null for maven project
 			// Model model = reader.read(new InputStreamReader(lastBuild.getWorkspace().child(getPomName(lastBuild)).read()));
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		return url;
 	}

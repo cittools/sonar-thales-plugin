@@ -16,7 +16,9 @@
 
 package hudson.plugins.sonar.utils;
 
+import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.plugins.sonar.SonarPublisher;
 import hudson.plugins.sonar.template.SonarPomGenerator;
 
 import java.io.File;
@@ -39,7 +41,7 @@ public class Utils {
 	 * @throws InterruptedException
 	 * @throws IOException
 	 */
-	public static List<String> getProjectSrcDirsList(String src, final FilePath root)
+	public static List<String> getProjectSrcDirsList(String src, final FilePath root, EnvVars env)
 	        throws IOException, InterruptedException
 	{
 	    final List<String> wildcards = new ArrayList<String>();
@@ -51,10 +53,10 @@ public class Utils {
 	        if (pat != null && !pat.trim().isEmpty()) {
 	        	String trimmedPattern = pat.trim();
 	        	if (trimmedPattern.indexOf("?")==-1 && trimmedPattern.indexOf("*") == -1){
-	        		sourceDirs.add(trimmedPattern);
+	        		sourceDirs.add(SonarPublisher.expandJenkinsVars(env, trimmedPattern) );
 	        	}
 	        	else {
-	        		wildcards.add(trimmedPattern);
+	        		wildcards.add(SonarPublisher.expandJenkinsVars(env, trimmedPattern));
 	        	}
 	        }
 	    }
