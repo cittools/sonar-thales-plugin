@@ -14,6 +14,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
+        <version>$compilerVersion$</version>
         <configuration>
           <source>$javaVersion$</source>
           <target>$javaVersion$</target>

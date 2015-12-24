@@ -12,7 +12,7 @@
   -->
 
   <artifactId>sonar</artifactId>
-  <version>1.6.1.thales.5</version>
+  <version>1.6.1.thales.8</version>
   <packaging>hpi</packaging>
   <name>Hudson Sonar Plugin - Thales</name>
   <url>http://wiki.hudson-ci.org/display/HUDSON/Sonar+Plugin</url>
@@ -184,6 +184,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
+        <version>2.0</version>
         <executions>
           <execution>
             <id>copy-sonar-runner</id>
@@ -233,6 +234,7 @@
       <plugin>
         <groupId>com.mycila.maven-license-plugin</groupId>
         <artifactId>maven-license-plugin</artifactId>
+        <version>1.5.0</version>
         <configuration>
           <header>${basedir}/src/license-header.txt</header>
           <includes>

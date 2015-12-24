@@ -91,7 +91,7 @@
             <f:radioBlock name="buildWay" value="maven" title="Maven" checked="${instance.lightProject.buildWay.value=='maven'}"/>
             <f:radioBlock name="buildWay" value="javaRunner" title="Java Runner" checked="${instance.lightProject.buildWay.value=='javaRunner'}">
                 <f:entry title="${%JVMOptions}" field="javaOpts">
-                    <f:expandableTextbox value="${instance.lightProject.javaOpts}"/>
+                    <f:expandableTextbox value="${instance.lightProject.buildWay.javaOpts}"/>
                 </f:entry>
             </f:radioBlock>
           </f:section>
@@ -134,6 +134,10 @@
 
             <f:entry title="${%JavaVersion}" description="${%JavaVersionDescr}">
               <f:textbox name="javaVersion" value="${instance.lightProject.javaVersion}"/>
+            </f:entry>
+
+            <f:entry title="${%CompilerVersion}" description="${%CompilerVersionDescr}">
+              <f:textbox name="compilerVersion" value="${instance.lightProject.compilerVersion}"/>
             </f:entry>
 
             <f:optionalBlock name="reports" title="${%ReuseReports}"

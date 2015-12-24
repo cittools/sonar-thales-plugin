@@ -380,10 +380,7 @@ public class SonarPublisher extends Notifier {
 					//Reuse report
 					if (lightProjectConfig.isReuseReports()){
 						propertiesStringBuilder.append("sonar.dynamicAnalysis=reuseReports\n");
-						if (lightProjectConfig.getReports().isUseTusarReports()){
-							propertiesStringBuilder.append("sonar.language=tusar\n").append("sonar.tusar.reportsPaths=generatedDTKITFiles/COVERAGE;generatedDTKITFiles/MEASURES;generatedDTKITFiles/VIOLATIONS;generatedDTKITFiles/TESTS\n");
-						}
-						else {
+						if (!lightProjectConfig.getReports().isUseTusarReports()){
 							if (lightProjectConfig.getReports().getCloverReportPath()!= null && !lightProjectConfig.getReports().getCloverReportPath().isEmpty()){
 								propertiesStringBuilder.append("sonar.clover.reportsPath=").append(lightProjectConfig.getReports().getCloverReportPath()).append("\n");
 							}
@@ -426,10 +423,14 @@ public class SonarPublisher extends Notifier {
 	}
 
 	private boolean executeSonarJavaRunner(AbstractBuild<?, ?> build,
-			Launcher launcher, BuildListener listener,
-			SonarInstallation sonarInstallation, String properties) throws IOException, InterruptedException {
+										   Launcher launcher, 
+										   BuildListener listener,
+										   SonarInstallation sonarInstallation, 
+										   String properties) 
+			throws IOException, InterruptedException 
+	{
 		SonarRunner sonarRunner = new SonarRunner(build.getProject(), launcher, build.getEnvironment(listener), build.getWorkspace());
-		return sonarRunner.launch(listener, getInstallation(), lightProject.getJavaOpts(), properties) == 0;
+		return sonarRunner.launch(listener, getInstallation(), lightProject.getBuildWay().getJavaOpts(), properties) == 0;
 	}
 
 	public MavenModuleSet getMavenProject(AbstractBuild build) {
@@ -462,10 +463,11 @@ public class SonarPublisher extends Notifier {
 	private boolean executeSonarMaven(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener, SonarInstallation sonarInstallation) {
 		try {
 			String pomName = getPomName(build, listener);
+			EnvVars env = build.getEnvironment(listener);
 			FilePath root = build.getWorkspace();
 			if (isUseSonarLight()) {
 				LOG.info("Generating " + pomName);
-				SonarPomGenerator.generatePomForNonMavenProject(getLightProject(), root, pomName);
+				SonarPomGenerator.generatePomForNonMavenProject(getLightProject(), root, pomName, env);
 			}
 			String mavenInstallationName = getMavenInstallationName();
 			if (isMavenBuilder(build.getProject())) {
@@ -515,9 +517,17 @@ public class SonarPublisher extends Notifier {
 		try {
 			AbstractBuild<?, ?> lastBuild = project.getLastBuild();
 			if (this.getLightProject() != null){
+				/**
+				 * Modified JMD:
+				 * Cause fields like GroupId, ArtifactId can containing Jenkins variable in the form of ${VAR_NAME}
+				 * We invoke the local expand method on those to ensure that Jenkins variables will be corrrectly expanded
+				 */
+    			//url = sonarInstallation.getProjectLink(this.lightProject.getGroupId(), 
+				//				                       this.lightProject.getArtifactId(), 
+				//				                       this.branch);
     			url = sonarInstallation.getProjectLink(this.lightProject.getGroupId(), 
-    			                                       this.lightProject.getArtifactId(), 
-    			                                       this.branch);
+								                       this.lightProject.getArtifactId(), 
+								                       this.branch);
     			
 			}else{
         		if (lastBuild != null) {
@@ -546,6 +556,28 @@ public class SonarPublisher extends Notifier {
 
 	public BuildStepMonitor getRequiredMonitorService() {
 		return BuildStepMonitor.BUILD;
+	}
+	
+	/**
+	 * Cause Jenkins variables (in the form of: ${VAR_NAME} ) can be used in every fields of the Jenkins 
+	 * job configuration form, this generical method is intended to allow expanding Jenkins variable 
+	 * for all form fields in a decoupled mode.
+	 * If the input string parameter contains a Jenkins variable it returns the well expanded string 
+	 * corresponding to the key parameter 'expandableJVars', else return the original string.
+	 * 
+	 * @param expandableJVars	String which could contain a Jenkins variable to expand
+	 * @param listener			the caller listener which contains the context
+	 * @return A string containing the expanded Jenkins variable content
+	 */
+	//public String expandJenkinsVars(AbstractBuild<?, ?> build, BuildListener listener, String expandableJVar) 
+	public static String expandJenkinsVars(EnvVars env, String expandableJVar) 
+			throws IOException, InterruptedException 
+	{
+		String resultStr = "";
+		//EnvVars env = build.getEnvironment(listener);
+		resultStr = env.expand(expandableJVar);
+		
+		return resultStr;
 	}
 
 
